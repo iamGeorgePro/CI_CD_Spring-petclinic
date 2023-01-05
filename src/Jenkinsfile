@@ -1,0 +1,54 @@
+pipeline {
+    agent any
+    tools {
+        maven 'Maven 3.6.3'
+    }
+
+     environment {
+        registryCredential = 'ecr:us-east-1:awscred'
+        appRegistry = "424925313933.dkr.ecr.us-east-1.amazonaws.com/vprofile"
+        vprofileRegistry = "https://424925313933.dkr.ecr.us-east-1.amazonaws.com"
+    }
+
+    stage('Fetch Code') {
+            steps {
+                git branch: 'main', url: 'https://github.com/iamGeorgePro/CI_CD_Spring-petclinic.git'
+            }
+        }
+        stage('Build') {
+            steps {
+                withMaven(maven: 'Maven 3.6.3') {
+                    sh './mvnw clean package'
+                }
+            }
+        }
+        stage('Test') {
+            steps {
+                withMaven(maven: 'Maven 3.6.3') {
+                    sh './mvnw test'
+                }
+            }
+        }
+
+          stage('Build App Image') {
+            steps {
+       
+              script {
+                dockerImage = docker.build( appRegistry + ":$BUILD_NUMBER", ".target/*.jar")
+             }
+
+
+        stage('Upload App Image') {
+          steps{
+            script {
+              docker.withRegistry( vprofileRegistry, registryCredential ) {
+                dockerImage.push("$BUILD_NUMBER")
+                dockerImage.push('latest')
+              }
+            }
+          }
+     }
+    }
+}
+
+}
